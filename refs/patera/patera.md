@@ -182,9 +182,10 @@ $-1 < x < 1$ &emsp; *(8a)*
 
 which has the solution
 
-$$
-u(x, t) = \sin \pi(t - x - 1), \quad x < t - 1; \qquad u(x,t) = 0, \quad x > t - 1. \tag{9}
-$$
+```
+     u(x, t) = (if x < t - 1 then sin(%pi (- x + t - 1)) else 0)
+```
+*(9)*
 
 Note for $t < 2$, $u_x$ is discontinuous. A problem similar to this is studied in detail in [1] for a "one-element" spectral method, and it is indicated that the Chebyshev representation allows for patching of domains with no further conditions than physically required. We demonstrate how this is done using the (physical-space) representation described in Subsection 1.1 and a collocation projection operator (the only viable projection operator for the nonlinear terms in the Navier–Stokes equations if high-order methods are used).
 
