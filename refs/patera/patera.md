@@ -20,9 +20,13 @@ A spectral element method that combines the generality of the finite element met
 
 Much attention has been devoted in the past several decades to the development of efficient, accurate, and stable numerical schemes for the solution of the (incompressible) Navier–Stokes equations,
 
-$$
-\mathbf{v}_t + (\mathbf{v}\cdot\nabla)\mathbf{v} = -\nabla p + \tfrac{1}{R}\nabla^2 \mathbf{v}, \qquad \nabla\cdot\mathbf{v}=0. \tag{1}
-$$
+```
+                               dv   lap(v)
+                 v . grad(v) + ── = ────── - grad(p)
+                               dt     R
+                              div(v) = 0
+```
+*(1)*
 
 Three classes of solution techniques have emerged: the finite difference techniques, the finite element methods, and the spectral techniques. Although the finite element and spectral methods are in fact related, practitioners of the two methods have not, in general, exploited this similarity. In this paper we present a hybrid finite-element–spectral method that combines the generality of the former with the accuracy of the latter in a more flexible ratio than is found in either technique alone.
 
@@ -46,69 +50,110 @@ Although the one-dimensional advection–diffusion equation is illustrative, the
 
 Our model problem is the one-dimensional advection–diffusion equation,
 
-$$
-u_t + u_x = \nu u_{xx}, \qquad -\infty < x < \infty. \tag{2}
-$$
+```
+                           du   du      d u
+                           ── + ── = nu ───
+                           dx   dt        2
+                                        dx
+```
+$-\infty < x < \infty.$ &emsp; *(2)*
 
 Using a second-order Adams–Bashforth explicit scheme for the wave operator and the Crank–Nicolson method for the diffusion term, the time-discretized form of (2) at time step $n$ is
 
-$$
-\frac{\hat u^{n+1} - u^n}{\Delta t} = -\tfrac{3}{2}(u_x)^n + \tfrac{1}{2}(u_x)^{n-1}, \tag{3a}
-$$
+```
+                    uH      - u    ux        3 ux
+                      n + 1    n     n - 1       n
+                    ──────────── = ─────── - ─────
+                         dt           2        2
+```
+*(3a)*
 
-$$
-\frac{u^{n+1} - \hat u^{n+1}}{\Delta t} = \tfrac{\nu}{2}\left[(u_{xx})^{n+1} + (u_{xx})^n\right]. \tag{3b}
-$$
+```
+               u      - uH        (uxx      + uxx ) nu
+                n + 1     n + 1       n + 1      n
+               ──────────────── = ────────────────────
+                      dt                   2
+```
+*(3b)*
 
 We remark briefly here on the similarity between the above model problem and the Navier–Stokes equations. If the nonlinear (advective) terms are treated explicitly, the full solution of the Navier–Stokes equations at each time step involves a wave-like equation similar to (3a), a Poisson equation for the pressure, and a Helmholtz equation (for the viscous terms) similar to (3b). Although the pressure and the viscous calculations may be coupled (depending on the time-stepping scheme used for the Stokes problem, see Section 2), the individual equations to be solved in a given time step are all represented in Eq. (3).
 
 We now discuss the spatial discretization of (2) by the spectral element method. The domain is broken up into $M$ "elements," the $i$th element being of length $L^i$ and defined on the interval $[a^i, b^i]$. Within the $i$th element we represent the function $u(x)$ as the Lagrangian interpolant through the $N_x^i + 1$ points
 
-$$
-\bar x_j = \cos\!\left(\frac{j\pi}{N_x^i}\right), \qquad j = 0, 1, 2, \ldots, N_x^i, \tag{4a}
-$$
+```
+                                     %pi j
+                           xb  = cos(─────)
+                             j         N
+```
+$j = 0, 1, 2, \ldots, N.$ &emsp; *(4a)*
 
 where the overbar indicates the local element coordinate system given by
 
-$$
-\bar x = \frac{2}{L^i}(x - a^i) - 1. \tag{4b}
-$$
+```
+                               2 (x - a)
+                          xb = ───────── - 1
+                                   L
+```
+*(4b)*
 
 The interpolant of $u(x)$ in the $i$th element is written as
 
-$$
-u^i(x) = \sum_{j=0}^{N_x^i} u_j^i \, h_j^i(x), \tag{5a}
-$$
+```
+                                 N
+                                ____
+                                ╲
+                        u (x) =  ⟩    u  h (x)
+                         i      ╱      j  j
+                                ‾‾‾‾
+                                j = 0
+```
+*(5a)*
 
-where the $h_j^i$ are identically zero outside the $i$th element, and are Lagrangian interpolants satisfying
+where the $h_j$ are identically zero outside the $i$th element, and are Lagrangian interpolants satisfying
 
-$$
-h_j^i(\bar x_k) = \delta_{jk} \tag{5b}
-$$
+```
+                         h (xb ) = delta
+                          j   k         j, k
+```
+*(5b)*
 
-within the element. (Here $\delta_{jk}$ is the Kronecker-delta symbol.) Given the special collocation points (4a), the interpolation functions $h_j^i(\bar x)$ can be expressed as
+within the element. (Here $\delta_{jk}$ is the Kronecker-delta symbol.) Given the special collocation points (4a), the interpolation functions $h_j(\bar x)$ can be expressed as
 
-$$
-h_j^i(\bar x) = \frac{2}{N_x^i \bar c_j} \sum_{n=0}^{N_x^i} \frac{1}{\bar c_n} T_n(\bar x_j)\, T_n(\bar x), \tag{5c}
-$$
+```
+                               N
+                              ____  T (xb ) T (xb)
+                              ╲      n   j   n
+                            2  ⟩    ──────────────
+                              ╱           c
+                              ‾‾‾‾         n
+                              n = 0
+                   h (xb) = ──────────────────────
+                    j                N c
+                                        j
+```
+*(5c)*
 
 where the $T_n$ are the Chebyshev polynomials defined as
 
-$$
-T_n(\cos\theta) = \cos n\theta, \tag{6a}
-$$
+```
+                    T (cos(theta)) = cos(n theta)
+                     n
+```
+*(6a)*
 
 and
 
-$$
-\bar c_k = 1, \quad k \ne 0, N_x^i; \qquad \bar c_k = 2, \quad k = 0, N_x^i. \tag{6b}
-$$
+$\bar c_k = 1$ for $k \ne 0, N$; &nbsp; $\bar c_k = 2$ for $k = 0, N$. &emsp; *(6b)*
 
 The purpose for choosing the particular collocation points (4a) for the Lagrangian interpolant $u^i$ is that
 
-$$
-\|u - u^i\|_x \lesssim \left(\frac{1}{N_x^i}\right)^k, \qquad N_x^i \to \infty, \quad \text{for all } k, \tag{7}
-$$
+```
+                                          1
+                          norm(u - u ) <= ──
+                                    i      k
+                                          N
+```
+as $N \to \infty$, for all $k$. &emsp; *(7)*
 
 (for $u \in C^\infty$ and any suitable norm), as can be easily demonstrated by Sturm–Liouville theory or the properties of cosine representation. (Here $C^p$ is the space of functions that are continuous and have continuous derivatives up to order $p$.) Other choices of collocation points have the property (7); however, (4a) seems a reasonable choice given the good approximation properties of Chebyshev polynomials as well as the existence of a fast transform.
 
@@ -118,17 +163,22 @@ Using the spatial discretization described, we now indicate the projection opera
 
 We look at the simple one-dimensional wave equation
 
-$$
-u_t + u_x = 0, \qquad -1 < x < 1, \tag{8a}
-$$
+```
+                             du   du
+                             ── + ── = 0
+                             dx   dt
+```
+$-1 < x < 1$ &emsp; *(8a)*
 
-$$
-u(x = -1, t) = \sin \pi t, \tag{8b}
-$$
+```
+                        u(- 1, t) = sin(%pi t)
+```
+*(8b)*
 
-$$
-u(x, t = 0) = 0, \tag{8c}
-$$
+```
+                             u(x, 0) = 0
+```
+*(8c)*
 
 which has the solution
 
@@ -140,19 +190,27 @@ Note for $t < 2$, $u_x$ is discontinuous. A problem similar to this is studied i
 
 Discretizing in time, (8) becomes at time $t^{n+1}$,
 
-$$
-\frac{u^{n+1} - u^n}{\Delta t} = -\tfrac{3}{2}(u_x)^n + \tfrac{1}{2}(u_x)^{n-1}, \tag{10a}
-$$
+```
+                    u      - u    ux        3 ux
+                     n + 1    n     n - 1       n
+                    ─────────── = ─────── - ─────
+                        dt           2        2
+```
+*(10a)*
 
-$$
-u^{n+1}(x = -1) = \sin \pi t^{n+1}. \tag{10b}
-$$
+```
+                    u     (- 1) = sin(%pi t     )
+                     n + 1                 n + 1
+```
+*(10b)*
 
 The domain is broken into two elements, the first covering $[-1, 0]$, the second $[0, 1]$. In each element the derivatives are calculated using collocation [1], either using a transform-recursion technique or by direct matrix multiplication. The only subtlety involves updating $u$ at the domain and element boundaries. With respect to the former, the correct treatment is to simply set the node at $x = -1$ according to (10b), with no boundary condition required at outflow ($x = 1$). As to element boundaries, a family of schemes exists. In particular, derivatives at the element interface ($x = 0$) can be evaluated as weighted averages
 
-$$
-D_0 = \alpha^- D_{0^-} + \alpha^+ D_{0^+}, \qquad \alpha^- + \alpha^+ = 1, \tag{11}
-$$
+```
+                       D  = D     ap + D     am
+                        0    0, p       0, m
+```
+$\alpha^- + \alpha^+ = 1$, with `am` = $\alpha^-$, `ap` = $\alpha^+$. &emsp; *(11)*
 
 where $D_{0^-}, D_{0^+}$ denote the derivatives at $x = 0$ evaluated in the $[-1, 0]$ and $[0, 1]$ elements, respectively.
 
@@ -168,75 +226,153 @@ We have demonstrated the ease with which Chebyshev collocation extends to multi-
 
 We present here the solution of
 
-$$
-u_{xx} - \lambda^2 u = f, \qquad -1 < x < 1, \tag{12a}
-$$
+```
+                          2
+                         d u           2
+                         ─── - u lambda  = f
+                           2
+                         dx
+```
+$-1 < x < 1$ &emsp; *(12a)*
 
-$$
-u(-1) = u(1) = 0, \tag{12b}
-$$
+```
+                        [u(- 1) = 0, u(1) = 0]
+```
+*(12b)*
 
 using the spectral element discretization. It is here that the influence of both spectral methods and finite element techniques becomes apparent.
 
 To construct the spectral element approximation we need the variational principle equivalent to the solution of (12), namely, maximization of the functional
 
-$$
-I = \sum_i I^i, \qquad I^i = \int_{a^i}^{b^i} \left[-\tfrac{1}{2} u_x^2 - \tfrac{1}{2}\lambda^2 u^2 - u f\right] dx, \tag{13}
-$$
+```
+                                  M
+                                 ____
+                                 ╲
+                             I =  ⟩    I
+                                 ╱      i
+                                 ‾‾‾‾
+                                 i = 1
+
+                     b                  du 2
+                    ⌠      2       2   (──)
+                    ⎮     u  lambda     dx
+               I  = ⎮  (- ────────── - ───── - f u) dx
+                i   ⎮         2          2
+                    ⌡
+                     a
+```
+*(13)*
 
 where $I^i$ is the contribution to $I$ from the $i$th element. In particular, we use the Lagrangian interpolant $u^i(x)$ as a trial function in (13), and require that the variation of $I^i$ with respect to the nodal values $u_j^i$ vanish. The elemental equations are then
 
-$$
-C_{jk}^i\, u_k^i = B_{jk}^i\, f_k^i, \tag{14a}
-$$
+```
+                         C     u  = B     f
+                          j, k  k    j, k  k
+```
+*(14a)*
 
 (we use the repeated-index summation convention for subscripts only), where
 
-$$
-C_{jk}^i = A_{jk}^i - \lambda^2 B_{jk}^i, \tag{14b}
-$$
+```
+                                                2
+                    C     = A     - B     lambda
+                     j, k    j, k    j, k
+```
+*(14b)*
 
 and $A_{jk}^i$ and $B_{jk}^i$ follow from (5), (6), and (13):
 
-$$
-A_{jk}^i = \frac{2}{L^i}\,\frac{4}{(N_x^i)^2 \bar c_j \bar c_k} \sum_{n,m} \frac{1}{\bar c_n \bar c_m}\, T_n(\bar x_j)\, T_m(\bar x_k)\, a_{nm}, \tag{15a}
-$$
+```
+                                      N
+                                     ____  T (xb ) a
+                                     ╲      m   k   n, m
+                             T (xb )  ⟩    ─────────────
+                        N     n   j  ╱          cb
+                       ____          ‾‾‾‾         m
+                       ╲             m = 0
+                     8  ⟩    ───────────────────────────
+                       ╱                 cb
+                       ‾‾‾‾                n
+                       n = 0
+             A     = ───────────────────────────────────
+              j, k                 2
+                                L N  cb  cb
+                                       j   k
+```
+*(15a)*
 
-$$
-B_{jk}^i = \frac{L^i}{2}\,\frac{4}{(N_x^i)^2 \bar c_j \bar c_k} \sum_{n,m} \frac{1}{\bar c_n \bar c_m}\, T_n(\bar x_j)\, T_m(\bar x_k)\, b_{nm}. \tag{15b}
-$$
+```
+                                       N
+                                      ____  T (xb ) b
+                                      ╲      m   k   n, m
+                              T (xb )  ⟩    ─────────────
+                         N     n   j  ╱          cb
+                        ____          ‾‾‾‾         m
+                        ╲             m = 0
+                    2 L  ⟩    ───────────────────────────
+                        ╱                 cb
+                        ‾‾‾‾                n
+                        n = 0
+            B     = ─────────────────────────────────────
+             j, k                 2
+                                 N  cb  cb
+                                      j   k
+```
+*(15b)*
 
 Here
 
-$$
-a_{nm} = \int_{-1}^{1} \frac{dT_n}{dx}\frac{dT_m}{dx}\, dx = 0, \quad n+m \text{ odd},
-$$
+$a_{nm} = \int_{-1}^{1} (dT_n/dx)(dT_m/dx)\,dx = 0$ for $n+m$ odd; for $n+m$ even:
 
-$$
-a_{nm} = \tfrac{1}{2}\left[J_{n-m} v_{n+m} - J_{n+m} v_{n-m}\right]\!,\quad n+m \text{ even}, \tag{16a}
-$$
+```
+                        J      v      - v      J
+                         n - m  n + m    n - m  n + m
+                a     = ─────────────────────────────
+                 n, m                 2
+```
+*(16a)*
 
 where
 
-$$
-J_k = -4 \sum_{p=1}^{\infty} \frac{1}{2p-1}, \quad k \ge 1; \qquad J_0 = 0. \tag{16b}
-$$
+```
+                                 inf
+                                 ____
+                                 ╲        1
+                        J  = - 4  ⟩    ───────
+                         k       ╱     2 p - 1
+                                 ‾‾‾‾
+                                 p = 1
+```
+$k \ge 1$; $J_0 = 0$. &emsp; *(16b)*
 
-Also,
+Also, $b_{nm} = \int_{-1}^{1} T_n T_m\, dx = 0$ for $n+m$ odd; for $n+m$ even:
 
-$$
-b_{nm} = \int_{-1}^{1} T_n T_m\, dx = 0, \qquad n+m \text{ odd},
-$$
-
-$$
-b_{nm} = \frac{1}{1 - (n+m)^2} + \frac{1}{1 - (n-m)^2}, \qquad n+m \text{ even}. \tag{17}
-$$
+```
+                              1              1
+                 b     = ──────────── + ────────────
+                  n, m              2              2
+                         1 - (n + m)    1 - (n - m)
+```
+*(17)*
 
 To construct the system matrix from the element matrices the "direct stiffness" method [4] is used, which recognizes that the variation in $I$ due to an element boundary node "displacement" is simply the sum of its contributions from each element it bounds. Denoting direct stiffness summation by $\sum'$, the spectral element approximation to (12) can then be written as
 
-$$
-C_{pq}\, u_q = B_{pq}\, f_q, \qquad C_{pq} = {\sum_i}'\, C_{jk}^i, \qquad B_{pq} = {\sum_i}'\, B_{jk}^i, \tag{18a,b}
-$$
+```
+                         C     u  = B     f
+                          p, q  q    p, q  q
+```
+*(18a)*
+
+```
+                     M                       M
+                    ____                    ____
+                    ╲                       ╲
+           [C     =  ⟩    C       , B     =  ⟩    B       ]
+             p, q   ╱      i, j, k   p, q   ╱      i, j, k
+                    ‾‾‾‾                    ‾‾‾‾
+                    i = 1                   i = 1
+```
+*(18b)*
 
 and $u_q$, $f_q$ are defined in terms of the "global" node numbering. Note that no patching is required across element boundaries to ensure continuity of $u_x$, as the projection (18) has been derived from the variational principle (13). The (essential) Dirichlet boundary conditions (12b) are imposed by matrix condensation; the rows and columns corresponding to boundary points are eliminated from the system matrix. Nonzero Neumann boundary conditions would be imposed by modifying the functional (13), while zero-derivative conditions are naturally imposed.
 
@@ -256,27 +392,45 @@ Thus it is seen that the spectral element method can achieve the accuracy of a g
 
 We now return to the model problem of Subsection 1.1. The inflow–outflow advection–diffusion equation of interest is
 
-$$
-u_t + u_x = \nu u_{xx}, \qquad -\infty < x < \infty, \tag{19a}
-$$
+```
+                                         2
+                           du   du      d u
+                           ── + ── = nu ───
+                           dx   dt        2
+                                        dx
+```
+$-\infty < x < \infty$ &emsp; *(19a)*
 
 with initial condition
 
-$$
-u(x, t = 0) = \frac{1}{(1 + 8\nu \cdot 0)^{1/2}} \exp\!\left[-\frac{(x - 0)^2}{1 + 8\nu \cdot 0}\right]. \tag{19b}
-$$
+```
+                                           2
+                                      - 2 x
+                          u(x, 0) = %e
+```
+*(19b)*
 
 The solution to (19) (requiring $u \to 0$ as $|x| \to \infty$) is
 
-$$
-u(x, t) = \frac{1}{(1 + 8\nu t)^{1/2}} \exp\!\left[-\frac{(x - t)^2}{1 + 8\nu t}\right]. \tag{20}
-$$
+```
+                                              2
+                                     2 (x - t)
+                                   - ──────────
+                                     8 nu t + 1
+                                 %e
+                      u(x, t) = ────────────────
+                                sqrt(8 nu t + 1)
+```
+*(20)*
 
 The time discretization is as given in (3). To eliminate the infinite domain we must truncate at finite $x$ and impose proper inflow–outflow boundary conditions. Denoting inflow and outflow as $x_I$, $x_O$, respectively, we use
 
-$$
-u(x_I, t) = u_{\text{exact}}(x_I, t), \qquad u_x(x_O, t) = 0. \tag{21}
-$$
+```
+                                         du
+              [u(xI, t) = uexact(xI, t), ──(xO, t) = 0]
+                                         dx
+```
+*(21)*
 
 ![Fig. 3a](fig03a.png)
 
@@ -320,73 +474,106 @@ Laminar and turbulent flow in a pipe or channel expansion is a complex flow situ
 
 The channel geometry is shown in Fig. 5. It is assumed that the channel length previous to the expansion is long, and the inflow profile is therefore taken to be parabolic. The steady separated flow is found by integrating the time-dependent Navier–Stokes equations until a steady situation is obtained; the equations to be numerically simulated are, therefore,
 
-$$
-\frac{\partial \mathbf{v}}{\partial t} = \mathbf{v}\times\boldsymbol{\omega} - \nabla\Pi + \tfrac{1}{R}\nabla^2 \mathbf{v}, \qquad \nabla\cdot\mathbf{v} = 0; \tag{22a}
-$$
+```
+                  dv   lap(v)
+                  ── = ────── - omega ~ v - grad Pi
+                  dt     R
 
-$$
-\Pi = p + \tfrac{1}{2}\mathbf{v}\cdot\mathbf{v}, \qquad \boldsymbol{\omega} = \nabla\times\mathbf{v}; \tag{22b}
-$$
+                              div v = 0
+```
+*(22a)*
 
-$$
-\mathbf{v} = 0 \text{ at solid walls}, \qquad \mathbf{v} = (1 - y^2)\hat{x} \text{ at inflow } (x = -2), \qquad \frac{\partial \mathbf{v}}{\partial x} = 0 \text{ at outflow } (x = L); \tag{22c}
-$$
+```
+                                  <2>
+                                 v
+                            Pi = ──── + p
+                                  2
 
-$$
-\mathbf{v}(x, t = 0) = \mathbf{v}^0(x); \tag{22d}
-$$
+                           omega = curl(v)
+```
+*(22b)*
+
+$\mathbf{v} = 0$ at solid walls; $\mathbf{v} = (1 - y^2)\hat x$ at inflow ($x=-2$); $\partial \mathbf{v}/\partial x = 0$ at outflow ($x=L$). &emsp; *(22c)*
+
+```
+                           v(x, 0) = v0(x)
+```
+*(22d)*
 
 where $\Pi$ is the dynamic pressure, and $\boldsymbol{\omega}$ is the vorticity. Eqs. (22) are nondimensionalized with respect to the inlet channel half-width, $h$, and the maximum velocity at inflow, $U_0$ ($R = U_0 h / \nu$). The step-height is taken to be the same as the channel half-width, and the nondimensional length of the channel following the expansion is $L$. The inflow point is always taken to be two step-heights up from the step. Various initial conditions $\mathbf{v}^0$ were used; typically the flow everywhere was taken initially to be that at inflow (and zero for $y < -1$). Note that although only steady results are presented in this paper, the method described here is not only an iterative steady-state solver, but an accurate time-dependent scheme as well.
 
 The time-stepping scheme used is based on the Green's function techniques developed for both spectral techniques [14–16] and finite element methods [17]. (Note the spectral element spatial discretization does not require the particular time-stepping procedure described below, nor vice versa. However, these spatial and temporal treatments are certainly compatible, and we therefore present them in a unified fashion.) Before beginning the simulation, the following Stokes problem is solved in a preprocessing stage:
 
-$$
-\nabla^2 \tilde \Pi_k = 0, \qquad \tilde \Pi_k(\mathbf{x}_j) = \delta_{kj}; \tag{23a}
-$$
+```
+                            lap(PiT ) = 0
+                                   k
 
-$$
-\frac{\tilde{\mathbf v}_k}{\Delta t} = -\nabla\tilde \Pi_k + \tfrac{1}{R}\nabla^2 \tilde{\mathbf v}_k; \tag{23b}
-$$
+                         PiT (x ) = delta
+                            k  j         k, j
+```
+*(23a)*
 
-$$
-\tilde{\mathbf v}_k = 0 \text{ at solid walls}, \qquad \tilde{\mathbf v}_k = 0 \text{ at inflow } (x = -2), \qquad \frac{\partial \tilde{\mathbf v}_k}{\partial x} = 0 \text{ at outflow } (x = L); \tag{23c}
-$$
+```
+                     lap(vT )                vT
+                           k                   k
+                     ──────── - grad(PiT ) = ───
+                        R               k    dt
+```
+*(23b)*
+
+$\tilde{\mathbf v}_k = 0$ at solid walls; $\tilde{\mathbf v}_k = 0$ at inflow ($x=-2$); $\partial \tilde{\mathbf v}_k/\partial x = 0$ at outflow ($x=L$). &emsp; *(23c)*
 
 where $\mathbf{x}_j$ ($j = 1, 2, \ldots, N_b$) represent the (numerical) grid points on the boundary $\partial D$, and $\delta_{kj}$ is the Kronecker-delta symbol. From the solution (23) we construct the capacitance matrix
 
-$$
-G_{ij} = \nabla\cdot \tilde{\mathbf v}_j(\mathbf{x}_i). \tag{24}
-$$
+```
+                         G     = div(vT )(x )
+                          i, j         j   i
+```
+*(24)*
 
 The time-stepping procedure then consists of first solving the inhomogeneous problem
 
-$$
-\frac{\tilde{\mathbf v}_I^{n+1} - \mathbf v^n}{\Delta t} = \tfrac{3}{2}(\mathbf v\times\boldsymbol\omega)^n - \tfrac{1}{2}(\mathbf v\times\boldsymbol\omega)^{n-1}; \tag{25a}
-$$
+```
+          vTI      - v    omega    ~ v      3 (omega  ~ v )
+             n + 1    n        nm1    nm1           n    n
+          ───────────── = ─────────────── - ───────────────
+               dt                2                 2
+```
+*(25a)*
 
-$$
-\nabla^2 \Pi_I^{n+1} = -\nabla\cdot \frac{\tilde{\mathbf v}_I^{n+1}}{\Delta t}, \qquad \Pi_I^{n+1} = 0 \text{ on } \partial D; \tag{25b}
-$$
+```
+                                     div(vTI     )
+                                            n + 1
+                   lap(PiI     ) = - ─────────────
+                          n + 1           dt
+```
+$\Pi_I^{n+1} = 0$ on $\partial D$. &emsp; *(25b)*
 
-$$
-\frac{1}{R}\nabla^2 \mathbf v_I^{n+1} - \frac{\mathbf v_I^{n+1}}{\Delta t} = \nabla\Pi_I^{n+1} - \frac{\tilde{\mathbf v}_I^{n+1}}{\Delta t}; \tag{25c}
-$$
+```
+          lap(vI     )   vI                         vTI
+                n + 1      n + 1                       n + 1
+          ──────────── - ─────── = grad(PiI     ) - ────────
+               R           dt              n + 1       dt
+```
+*(25c)*
 
-$$
-\mathbf v_I^{n+1} = 0 \text{ at solid walls}, \qquad \mathbf v_I^{n+1} = (1 - y^2)\hat x \text{ at inflow } (x = -2), \qquad \frac{\partial \mathbf v_I^{n+1}}{\partial x} = 0 \text{ at outflow } (x = L). \tag{25d}
-$$
+$\mathbf v_I^{n+1} = 0$ at solid walls; $\mathbf v_I^{n+1} = (1 - y^2)\hat x$ at inflow ($x=-2$); $\partial \mathbf v_I^{n+1}/\partial x = 0$ at outflow ($x=L$). &emsp; *(25d)*
 
 Note that no boundary conditions are imposed on $\Pi_I^{n+1}$. The solution is then constructed from $\tilde{\mathbf v}_k$ and $\mathbf v_I^{n+1}$,
 
-$$
-\mathbf v^{n+1} = \mathbf v_I^{n+1} + \beta_j\, \tilde{\mathbf v}_j, \tag{26a}
-$$
+```
+                      v      = vI      + bb  vT
+                       n + 1     n + 1     j   j
+```
+$\beta_j$ → `bb_j`. &emsp; *(26a)*
 
 where the $\beta_j$ are determined from
 
-$$
-G_{ij}\beta_j = -\nabla\cdot \mathbf v_I^{n+1}(\mathbf x_i), \tag{26b}
-$$
+```
+                    G     bb  = - div vI     (x )
+                     i, j   j           n + 1  i
+```
+*(26b)*
 
 which is the requirement that continuity be satisfied on the domain boundary $\partial D$.
 
@@ -398,41 +585,68 @@ The nonlinear step (25a) is evaluated using collocation exactly as in the wave e
 
 The implicit equations to be solved, (23), (25b), (25c), are treated as the Helmholtz equation of Subsection 1.3. The elements are rectilinear in $(x, y)$, and therefore the elemental equations can be constructed for a single element and appropriately scaled to represent any other element. In two dimensions, the Lagrangian interpolant of a variable $u(x, y)$ is written in the $i$th element (of dimension $L_x^i$ by $L_y^i$) as
 
-$$
-u^i(\bar x, \bar y) = \sum_{j=0}^{N_x^i}\sum_{k=0}^{N_y^i} u_{jk}^i\, h_j(\bar x)\, h_k(\bar y), \tag{27}
-$$
+```
+                           Nx           Ny
+                          ____         ____
+                          ╲            ╲
+             u (xb, yb) =  ⟩    h (xb)  ⟩    u     h (yb)
+              i           ╱      j     ╱      j, k  k
+                          ‾‾‾‾         ‾‾‾‾
+                          j = 0        k = 0
+```
+*(27)*
 
 where the $h_j$ are defined in (4)–(6). For the two-dimensional Helmholtz equation
 
-$$
-\nabla^2 u - \lambda^2 u = f, \tag{28a}
-$$
+```
+                                         2
+                        lap(u) - u lambda  = f
+```
+*(28a)*
 
 and corresponding functional
 
-$$
-I = \sum_i \int_{\Omega^i}\!\left[-\tfrac{1}{2}|\nabla u|^2 - \tfrac{1}{2}\lambda^2 u^2 - u f\right] dx\,dy, \tag{28b}
-$$
+```
+                         ⌠⌠     2       2          2
+                         ⎮⎮    u  lambda    |grad u|
+              I = sum_i  ⎮⎮ (- ────────── - ───────── - f u) dx dy
+                         ⎮⎮        2            2
+                         ⌡⌡
+```
+*(28b)*
 
 the elemental equations are
 
-$$
-C_{jklm}^i\, u_{lm}^i = B_{jklm}^i\, f_{lm}^i, \tag{29a}
-$$
+```
+                C           u     = B           f
+                 j, k, l, m  l, m    j, k, l, m  l, m
+```
+*(29a)*
 
-$$
-C_{jklm}^i = A_{jklm}^i - \lambda^2 B_{jklm}^i. \tag{29b}
-$$
+```
+                                                         2
+           C           = A           - B           lambda
+            j, k, l, m    j, k, l, m    j, k, l, m
+```
+*(29b)*
 
 Here
 
-$$
-A_{jklm}^i = \frac{L_y^i}{L_x^i}\, a_{jl}\, b_{km} + \frac{L_x^i}{L_y^i}\, b_{jl}\, a_{km}, \tag{30a}
-$$
+```
+                          Ly a     b       Lx b     a
+                              j, l  k, m       j, l  k, m
+            A           = ────────────── + ──────────────
+             j, k, l, m         Lx               Ly
+```
+*(30a)*
 
-$$
-B_{jklm}^i = \frac{L_x^i L_y^i}{4}\, b_{jl}\, b_{km}, \tag{30b}
-$$
+```
+                                 Lx Ly b     b
+                                        j, l  k, m
+                   B           = ─────────────────
+                    j, k, l, m           4
+```
+*(30b)*
 
 and $A_{jl}^i$, $B_{jl}^i$ are defined in (15). The system matrix is then constructed by the direct stiffness method. Note that the only boundary conditions required in (23)–(25) are Dirichlet (implemented by matrix condensation) and zero-derivative (natural) boundary conditions.
 
