@@ -53,49 +53,121 @@ def exact(x):
     return -(math.cos(math.pi * x + math.pi / 4) + math.sqrt(2) / 2) / math.pi ** 2
 
 
+def chebyshev_polys(N):
+    T = [[0.0] * (N + 1) for _ in range(N + 1)]
+    T[0][0] = 1.0
+    if N >= 1:
+        T[1][1] = 1.0
+    for n in range(2, N + 1):
+        for k in range(N + 1):
+            a = 2.0 * T[n - 1][k - 1] if k > 0 else 0.0
+            T[n][k] = a - T[n - 2][k]
+    return T
+
+
+def poly_deriv(p):
+    return [k * p[k] for k in range(1, len(p))]
+
+
+def poly_mult(p, q):
+    r = [0.0] * (len(p) + len(q) - 1)
+    for i, a in enumerate(p):
+        for j, b in enumerate(q):
+            r[i + j] += a * b
+    return r
+
+
+def poly_int_pm1(p):
+    s = 0.0
+    for k, c in enumerate(p):
+        if k % 2 == 0:
+            s += c * 2 / (k + 1)
+    return s
+
+
+def a_modal(N):
+    T = chebyshev_polys(N)
+    Tp = [poly_deriv(T[n]) for n in range(N + 1)]
+    a = [[0.0] * (N + 1) for _ in range(N + 1)]
+    for n in range(N + 1):
+        for m in range(n, N + 1):
+            v = poly_int_pm1(poly_mult(Tp[n], Tp[m])) if Tp[n] and Tp[m] else 0.0
+            a[n][m] = v
+            a[m][n] = v
+    return a
+
+
+def b_modal(N):
+    b = [[0.0] * (N + 1) for _ in range(N + 1)]
+    for n in range(N + 1):
+        for m in range(N + 1):
+            if (n + m) % 2 == 0:
+                b[n][m] = 1.0 / (1 - (n + m) ** 2) + 1.0 / (1 - (n - m) ** 2)
+    return b
+
+
+def patera_AB(N, L):
+    a = a_modal(N)
+    b = b_modal(N)
+    cb = [2.0 if (k == 0 or k == N) else 1.0 for k in range(N + 1)]
+    T = [[math.cos(n * j * math.pi / N) for j in range(N + 1)] for n in range(N + 1)]
+    A = [[0.0] * (N + 1) for _ in range(N + 1)]
+    B = [[0.0] * (N + 1) for _ in range(N + 1)]
+    pre = 4.0 / (N * N)
+    for j in range(N + 1):
+        for k in range(N + 1):
+            sa = 0.0
+            sb = 0.0
+            for n in range(N + 1):
+                for m in range(N + 1):
+                    fac = T[n][j] * T[m][k] / (cb[n] * cb[m])
+                    sa += fac * a[n][m]
+                    sb += fac * b[n][m]
+            A[j][k] = (2.0 / L) * pre * sa / (cb[j] * cb[k])
+            B[j][k] = (L / 2.0) * pre * sb / (cb[j] * cb[k])
+    return A, B
+
+
 def spectral_1elem(N):
-    D, x = cheb(N)
-    D2 = matmul(D, D)
-    A = [[D2[i][j] for j in range(1, N)] for i in range(1, N)]
-    b = [f(x[i]) for i in range(1, N)]
-    u_int = solve_dense(A, b)
+    A, B = patera_AB(N, 2.0)
+    _, xb = cheb(N)
+    fvals = [f(xb[j]) for j in range(N + 1)]
+    Fg = [-sum(B[i][j] * fvals[j] for j in range(N + 1)) for i in range(N + 1)]
+    K = [[A[i][j] for j in range(1, N)] for i in range(1, N)]
+    rhs = [Fg[i] for i in range(1, N)]
+    u_int = solve_dense(K, rhs)
     err = 0.0
     for i in range(N - 1):
-        err = max(err, abs(u_int[i] - exact(x[i + 1])))
+        err = max(err, abs(u_int[i] - exact(xb[i + 1])))
     return err
 
 
 def spectral_2elem(N):
-    D, xi = cheb(N)
-    D2 = matmul(D, D)
-    n = 2 * N + 1
-    A = [[0.0] * n for _ in range(n)]
-    b = [0.0] * n
-
-    A[0][0] = 1.0
-    for j in range(1, N):
-        r = N - j
-        for jj in range(N + 1):
-            A[r][N - jj] += 4 * D2[j][jj]
-        b[r] = f((xi[j] - 1) / 2)
-
-    for k in range(N + 1):
-        A[N][N - k] += 2 * D[0][k]
-        A[N][2 * N - k] -= 2 * D[N][k]
-
-    for j in range(1, N):
-        r = 2 * N - j
-        for jj in range(N + 1):
-            A[r][2 * N - jj] += 4 * D2[j][jj]
-        b[r] = f((xi[j] + 1) / 2)
-
-    A[2 * N][2 * N] = 1.0
-
-    u = solve_dense(A, b)
-    err = 0.0
+    A, B = patera_AB(N, 1.0)
+    _, xb = cheb(N)
+    n_global = 2 * N + 1
+    Ag = [[0.0] * n_global for _ in range(n_global)]
+    Bg = [[0.0] * n_global for _ in range(n_global)]
+    x_global = [0.0] * n_global
     for j in range(N + 1):
-        err = max(err, abs(u[N - j] - exact((xi[j] - 1) / 2)))
-        err = max(err, abs(u[2 * N - j] - exact((xi[j] + 1) / 2)))
+        x_global[N - j] = (xb[j] - 1) / 2
+        x_global[2 * N - j] = (xb[j] + 1) / 2
+    for j in range(N + 1):
+        for k in range(N + 1):
+            Ag[N - j][N - k] += A[j][k]
+            Bg[N - j][N - k] += B[j][k]
+    for j in range(N + 1):
+        for k in range(N + 1):
+            Ag[2 * N - j][2 * N - k] += A[j][k]
+            Bg[2 * N - j][2 * N - k] += B[j][k]
+    fvals = [f(x_global[i]) for i in range(n_global)]
+    Fg = [-sum(Bg[i][j] * fvals[j] for j in range(n_global)) for i in range(n_global)]
+    Asub = [[Ag[i][j] for j in range(1, n_global - 1)] for i in range(1, n_global - 1)]
+    rhs = [Fg[i] for i in range(1, n_global - 1)]
+    u_int = solve_dense(Asub, rhs)
+    err = 0.0
+    for i in range(n_global - 2):
+        err = max(err, abs(u_int[i] - exact(x_global[i + 1])))
     return err
 
 
