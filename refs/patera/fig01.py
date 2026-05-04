@@ -21,9 +21,9 @@ def exact(x, t):
     return math.sin(math.pi * (t - x - 1)) if x < t - 1 else 0.0
 
 
-def solve(N, T=5.0):
+def solve(N, nsteps):
+    T = 5
     D, xb = cheb(N)
-    nsteps = round(256 * N * N * T)
     dt = T / nsteps
     A = [[2.0 * dt * D[i][j] for j in range(N + 1)] for i in range(N + 1)]
     omega = math.pi * dt
@@ -61,7 +61,19 @@ def solve(N, T=5.0):
     return err
 
 
-if __name__ == "__main__":
-    for Nt in [7, 9, 11, 13, 15, 17, 19]:
-        e = solve((Nt - 1) // 2)
-        print(Nt, math.log10(e))
+ref = { }
+with open("fig01.dat") as f:
+    for line in f:
+        n, x = line.split()
+        ref[int(n)] = float(x)
+
+for n in [7, 9, 11, 13, 15, 17, 19]:
+    m = n
+    ep = math.log10(solve((n - 1) // 2, m))
+    while True:
+        m *= 2
+        e = math.log10(solve((n - 1) // 2, m))
+        if abs(e - ep) < 0.01:
+            break
+        ep = e
+    print("%2d%8.2f%8.2f%8d" % (n, e, ref[n], m))
